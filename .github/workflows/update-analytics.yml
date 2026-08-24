@@ -24,7 +24,7 @@ jobs:
           node-version: '20'
 
       - name: Install Generator Dependencies
-        run: npm install sharp omggif
+        run: npm install --no-save sharp omggif
 
       - name: Generate Animated ASCII GIF & Analytics SVGs
         env:
