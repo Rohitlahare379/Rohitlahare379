@@ -39,7 +39,5 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
-          git reset --soft origin/main
           git add generated/*
-          git diff --staged --quiet || (git commit -m "auto: update profile assets & animated GIF [skip ci]" && git push origin main)
+          git diff --staged --quiet || (git commit -m "auto: update profile assets & animated GIF [skip ci]" && git pull --rebase origin main && git push origin main)
