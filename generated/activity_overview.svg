@@ -12,8 +12,8 @@
   <text x="30" y="38" fill="#e2e8f0" font-family="monospace" font-size="14" font-weight="bold">Activity overview</text>
   <text x="30" y="68" fill="#94a3b8" font-family="monospace" font-size="12">📖 Contributed to</text>
 
-  <text x="50" y="100" fill="#58a6ff" font-family="monospace" font-size="12" font-weight="bold">Rohitlahare379/Rohitlahare379</text><text x="50" y="124" fill="#58a6ff" font-family="monospace" font-size="12" font-weight="bold">Rohitlahare379/leetcode-solutions</text><text x="50" y="148" fill="#58a6ff" font-family="monospace" font-size="12" font-weight="bold">Rohitlahare379/QUANTIVE-2.0</text>
-  <text x="50" y="172" fill="#94a3b8" font-family="monospace" font-size="11">and 19 other repositories</text>
+  
+  <text x="50" y="100" fill="#94a3b8" font-family="monospace" font-size="11">and 22 other repositories</text>
 
   <!-- Divider Line -->
   <line x1="440" y1="20" x2="440" y2="220" stroke="#21262d" stroke-width="1.5"/>
