@@ -98,9 +98,9 @@
         <rect x="0" y="0" width="280" height="54" rx="8" fill="#090d16" stroke="#1e293b" stroke-width="1"/>
         <circle cx="16" cy="18" r="4" fill="#3178c6"/>
         <text x="28" y="22" fill="#e2e8f0" font-family="monospace" font-size="12" font-weight="bold">TypeScript</text>
-        <text x="264" y="22" fill="#10b981" font-family="monospace" font-size="12" font-weight="bold" text-anchor="end">74.9%</text>
+        <text x="264" y="22" fill="#10b981" font-family="monospace" font-size="12" font-weight="bold" text-anchor="end">74.8%</text>
         <rect x="12" y="32" width="256" height="4" rx="2" fill="#1e293b"/>
-        <rect x="12" y="32" width="192" height="4" rx="2" fill="#3178c6"/>
+        <rect x="12" y="32" width="191" height="4" rx="2" fill="#3178c6"/>
       </g>
       <g transform="translate(326, 390)">
         <rect x="0" y="0" width="280" height="54" rx="8" fill="#090d16" stroke="#1e293b" stroke-width="1"/>
@@ -114,9 +114,9 @@
         <rect x="0" y="0" width="280" height="54" rx="8" fill="#090d16" stroke="#1e293b" stroke-width="1"/>
         <circle cx="16" cy="18" r="4" fill="#f1e05a"/>
         <text x="28" y="22" fill="#e2e8f0" font-family="monospace" font-size="12" font-weight="bold">JavaScript</text>
-        <text x="264" y="22" fill="#10b981" font-family="monospace" font-size="12" font-weight="bold" text-anchor="end">9.9%</text>
+        <text x="264" y="22" fill="#10b981" font-family="monospace" font-size="12" font-weight="bold" text-anchor="end">10.1%</text>
         <rect x="12" y="32" width="256" height="4" rx="2" fill="#1e293b"/>
-        <rect x="12" y="32" width="25" height="4" rx="2" fill="#f1e05a"/>
+        <rect x="12" y="32" width="26" height="4" rx="2" fill="#f1e05a"/>
       </g>
       <g transform="translate(30, 455)">
         <rect x="0" y="0" width="280" height="54" rx="8" fill="#090d16" stroke="#1e293b" stroke-width="1"/>
