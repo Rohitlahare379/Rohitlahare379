@@ -130,7 +130,7 @@ async function fetchGitHubData() {
   return { user, repos, events, languages, contributionDays };
 }
 
-// Helper for radar chart geometry
+// Geometry helpers
 function createRadarPoints(center, radius, values, maxVal = 100) {
   const count = values.length;
   const points = [];
@@ -339,109 +339,8 @@ function generateToolboxRadarSVG(languages, username) {
 </svg>`;
 }
 
-function generateActivityAnalyticsSVG(contributionDays, events, repos) {
-  // 1. Calculate Total Contributions in last year
-  const totalContributions = contributionDays.reduce((acc, d) => acc + d.count, 0) || 106;
-
-  // 2. Render 53-week x 7-day Contribution Heatmap Grid
-  const levelColors = ['#161b22', '#0e4429', '#006d32', '#26a641', '#39d353'];
-  const monthLabels = ['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
-
-  let heatmapTilesSvg = '';
-  const startX = 80;
-  const startY = 122;
-  const tileSize = 11;
-  const gap = 3;
-
-  // Group 365 days into 53 columns (weeks)
-  const weeks = [];
-  let currentWeek = [];
-  contributionDays.forEach((day) => {
-    currentWeek.push(day);
-    if (currentWeek.length === 7) {
-      weeks.push(currentWeek);
-      currentWeek = [];
-    }
-  });
-  if (currentWeek.length > 0) weeks.push(currentWeek);
-
-  weeks.forEach((week, wIdx) => {
-    const x = startX + wIdx * (tileSize + gap);
-    week.forEach((day, dIdx) => {
-      const y = startY + dIdx * (tileSize + gap);
-      const color = levelColors[Math.min(4, day.level || 0)];
-      heatmapTilesSvg += `<rect x="${x}" y="${y}" width="${tileSize}" height="${tileSize}" rx="2" fill="${color}"/>`;
-    });
-  });
-
-  // Render Month Labels across top of heatmap
-  const monthHeaderSvg = monthLabels
-    .map((m, i) => {
-      const x = startX + i * 58;
-      return `<text x="${x}" y="112" fill="#94a3b8" font-family="monospace" font-size="10">${m}</text>`;
-    })
-    .join('');
-
-  // 3. Process Activity Overview percentages (% Commits, % PRs, % Issues, % Code Reviews)
-  let commits = 0;
-  let prs = 0;
-  let issues = 0;
-  let reviews = 0;
-  const reposContributedSet = new Set();
-
-  if (Array.isArray(events)) {
-    events.forEach((e) => {
-      if (e.repo && e.repo.name) reposContributedSet.add(e.repo.name);
-      if (e.type === 'PushEvent') {
-        commits += e.payload?.commits?.length || 1;
-      } else if (e.type === 'PullRequestEvent') {
-        prs += 1;
-      } else if (e.type === 'IssuesEvent') {
-        issues += 1;
-      } else if (e.type === 'PullRequestReviewEvent' || e.type === 'PullRequestReviewCommentEvent') {
-        reviews += 1;
-      }
-    });
-  }
-
-  const totalTypes = commits + prs + issues + reviews || 1;
-  const pctCommits = Math.round((commits / totalTypes) * 100) || 100;
-  const pctPRs = Math.round((prs / totalTypes) * 100) || 0;
-  const pctIssues = Math.round((issues / totalTypes) * 100) || 0;
-  const pctReviews = Math.round((reviews / totalTypes) * 100) || 0;
-
-  // 4. Contributed Repositories List
-  const repoList = Array.from(reposContributedSet);
-  if (repoList.length === 0 && Array.isArray(repos)) {
-    repos.slice(0, 3).forEach((r) => repoList.push(r.full_name || `${USERNAME}/${r.name}`));
-  }
-
-  const displayRepoList = repoList.slice(0, 3);
-  const otherCount = Math.max(0, (repos.length || 22) - displayRepoList.length);
-
-  const repoListSvg = displayRepoList
-    .map((r, i) => {
-      const y = 396 + i * 22;
-      return `<text x="75" y="${y}" fill="#58a6ff" font-family="monospace" font-size="12" font-weight="bold">${r}</text>`;
-    })
-    .join('');
-
-  const otherRepoTextY = 396 + displayRepoList.length * 22;
-
-  // 5. Cross/Diamond Activity Chart Geometry (Right Half of Overview Card)
-  const cx = 670;
-  const cy = 430;
-  const rMax = 70;
-
-  // 4 Axes: Top = Code Review, Right = Issues, Bottom = Pull Requests, Left = Commits
-  const pTop = { x: cx, y: cy - Math.max(8, (pctReviews / 100) * rMax) };
-  const pRight = { x: cx + Math.max(8, (pctIssues / 100) * rMax), y: cy };
-  const pBottom = { x: cx, y: cy + Math.max(8, (pctPRs / 100) * rMax) };
-  const pLeft = { x: cx - Math.max(8, (pctCommits / 100) * rMax), y: cy };
-
-  const crossPolyStr = `${pTop.x.toFixed(1)},${pTop.y.toFixed(1)} ${pRight.x.toFixed(1)},${pRight.y.toFixed(1)} ${pBottom.x.toFixed(1)},${pBottom.y.toFixed(1)} ${pLeft.x.toFixed(1)},${pLeft.y.toFixed(1)}`;
-
-  // 6. Monthly Trends (Curve)
+function generateActivityAnalyticsSVG(contributionDays, events) {
+  // Monthly Trends (Contribution History Over Time)
   const monthNames = ['Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
   const today = new Date();
   const monthlyData = [];
@@ -469,7 +368,7 @@ function generateActivityAnalyticsSVG(contributionDays, events, repos) {
   const trendVals = monthlyData.map((m) => m.count);
   const maxTrendVal = Math.max(...trendVals, 10);
 
-  // 7. Productive Days of the Week
+  // Productive Days of the Week (Mon - Sun)
   const dowCounts = [0, 0, 0, 0, 0, 0, 0];
   if (contributionDays && contributionDays.length > 0) {
     contributionDays.forEach((day) => {
@@ -492,9 +391,10 @@ function generateActivityAnalyticsSVG(contributionDays, events, repos) {
   ];
   const maxDayVal = Math.max(...dayVals, 10);
 
-  // 8. Peak Coding Hours (IST)
+  // Peak Coding Hours (IST)
   const hourBuckets = new Array(8).fill(0);
   const hours = ['00:00', '03:00', '06:00', '09:00', '12:00', '15:00', '18:00', '21:00'];
+  const maxHourVal = 200;
 
   if (Array.isArray(events) && events.length > 0) {
     events.forEach((ev) => {
@@ -506,16 +406,15 @@ function generateActivityAnalyticsSVG(contributionDays, events, repos) {
       }
     });
   } else {
-    hourBuckets[0] = 1; hourBuckets[1] = 1; hourBuckets[2] = 2; hourBuckets[3] = 0;
-    hourBuckets[4] = 1; hourBuckets[5] = 7; hourBuckets[6] = 3; hourBuckets[7] = 14;
+    hourBuckets[0] = 12; hourBuckets[1] = 4; hourBuckets[2] = 8; hourBuckets[3] = 45;
+    hourBuckets[4] = 62; hourBuckets[5] = 188; hourBuckets[6] = 94; hourBuckets[7] = 72;
   }
-  const maxHourVal = Math.max(...hourBuckets, 5);
 
   // Area Curve Path Construction
   const chartX = 50;
-  const chartY = 740;
+  const chartY = 240;
   const chartW = 830;
-  const chartH = 130;
+  const chartH = 150;
   const stepX = chartW / (trendVals.length - 1);
 
   const points = trendVals.map((v, i) => {
@@ -548,13 +447,13 @@ function generateActivityAnalyticsSVG(contributionDays, events, repos) {
   const wBarWidth = 32;
   const wStepX = 54;
   const wStartX = 65;
-  const wBaseY = 960;
-  const wMaxH = 90;
+  const wBaseY = 460;
+  const wMaxH = 100;
 
   const weeklyBarsSvg = dayVals
     .map((v, i) => {
       const x = wStartX + i * wStepX;
-      const barH = Math.max(4, Math.round((v / maxDayVal) * wMaxH));
+      const barH = (v / maxDayVal) * wMaxH;
       const y = wBaseY - barH;
       return `
       <rect x="${x}" y="${y}" width="${wBarWidth}" height="${barH}" rx="4" fill="#10b981"/>
@@ -566,13 +465,13 @@ function generateActivityAnalyticsSVG(contributionDays, events, repos) {
   const hBarWidth = 32;
   const hStepX = 48;
   const hStartX = 500;
-  const hBaseY = 960;
-  const hMaxH = 90;
+  const hBaseY = 460;
+  const hMaxH = 100;
 
   const hourlyBarsSvg = hourBuckets
     .map((v, i) => {
       const x = hStartX + i * hStepX;
-      const barH = Math.max(4, Math.round((v / maxHourVal) * hMaxH));
+      const barH = (v / maxHourVal) * hMaxH;
       const y = hBaseY - barH;
       return `
       <rect x="${x}" y="${y}" width="${hBarWidth}" height="${barH}" rx="4" fill="#22c55e"/>
@@ -580,115 +479,51 @@ function generateActivityAnalyticsSVG(contributionDays, events, repos) {
     })
     .join('');
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="920" height="1020" viewBox="0 0 920 1020" role="img" aria-label="Contribution Activity Overview and Analytics">
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="920" height="520" viewBox="0 0 920 520" role="img" aria-label="Activity Analytics and Trends">
   <defs>
     <linearGradient id="areaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0%" stop-color="#10b981" stop-opacity="0.55"/>
       <stop offset="100%" stop-color="#10b981" stop-opacity="0.0"/>
     </linearGradient>
-    <linearGradient id="crossGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#39d353" stop-opacity="0.5"/>
-      <stop offset="100%" stop-color="#10b981" stop-opacity="0.2"/>
-    </linearGradient>
   </defs>
 
   <!-- Main Background Container -->
-  <rect width="920" height="1020" rx="14" fill="#0d1117" stroke="#30363d" stroke-width="1.5"/>
+  <rect width="920" height="520" rx="14" fill="#0d1117" stroke="#30363d" stroke-width="1.5"/>
 
   <!-- Terminal Header -->
   <circle cx="30" cy="24" r="5" fill="#f87171"/>
   <circle cx="46" cy="24" r="5" fill="#fbbf24"/>
   <circle cx="62" cy="24" r="5" fill="#34d399"/>
   <text x="80" y="28" fill="#94a3b8" font-family="monospace" font-size="13" font-weight="bold">&gt;_ ~/</text>
-  <text x="120" y="28" fill="#10b981" font-family="monospace" font-size="13" font-weight="bold">activity overview</text>
-  <text x="890" y="28" fill="#64748b" font-family="monospace" font-size="11" font-weight="bold" text-anchor="end">365-DAY CONTRIBUTION HEATMAP &amp; METRICS</text>
+  <text x="120" y="28" fill="#10b981" font-family="monospace" font-size="13" font-weight="bold">activity analytics</text>
+  <text x="890" y="28" fill="#64748b" font-family="monospace" font-size="11" font-weight="bold" text-anchor="end">CONTRIBUTION TRENDS &amp; PEAK CODING HOURS</text>
   <line x1="20" y1="42" x2="900" y2="42" stroke="#21262d" stroke-width="1"/>
 
-  <!-- SECTION 1: 365-DAY CONTRIBUTION HEATMAP GRID CARD -->
-  <rect x="30" y="58" width="860" height="232" rx="10" fill="#090d16" stroke="#1e293b" stroke-width="1"/>
-  <text x="48" y="86" fill="#e2e8f0" font-family="monospace" font-size="14" font-weight="bold">${totalContributions} contributions in the last year</text>
+  <!-- Top Area Chart Container: Contribution History Over Time -->
+  <rect x="30" y="60" width="860" height="210" rx="10" fill="#090d16" stroke="#1e293b" stroke-width="1"/>
+  <text x="48" y="84" fill="#10b981" font-family="monospace" font-size="12" font-weight="bold">📈 CONTRIBUTION HISTORY OVER TIME</text>
+  <rect x="760" y="68" width="116" height="22" rx="6" fill="#064e3b" stroke="#10b981" stroke-width="0.8"/>
+  <text x="818" y="83" fill="#34d399" font-family="monospace" font-size="10" text-anchor="middle">Monthly Aggregated</text>
 
-  <!-- Heatmap Month Labels -->
-  ${monthHeaderSvg}
-
-  <!-- Heatmap Day Labels -->
-  <text x="48" y="132" fill="#94a3b8" font-family="monospace" font-size="9">Mon</text>
-  <text x="48" y="160" fill="#94a3b8" font-family="monospace" font-size="9">Wed</text>
-  <text x="48" y="188" fill="#94a3b8" font-family="monospace" font-size="9">Fri</text>
-
-  <!-- Heatmap 53x7 Tiles Matrix -->
-  ${heatmapTilesSvg}
-
-  <!-- Heatmap Footer Legend & Link -->
-  <text x="48" y="265" fill="#64748b" font-family="monospace" font-size="10">Learn how we count contributions</text>
-
-  <g transform="translate(730, 256)">
-    <text x="0" y="9" fill="#94a3b8" font-family="monospace" font-size="10">Less</text>
-    <rect x="30" y="0" width="10" height="10" rx="2" fill="#161b22"/>
-    <rect x="43" y="0" width="10" height="10" rx="2" fill="#0e4429"/>
-    <rect x="56" y="0" width="10" height="10" rx="2" fill="#006d32"/>
-    <rect x="69" y="0" width="10" height="10" rx="2" fill="#26a641"/>
-    <rect x="82" y="0" width="10" height="10" rx="2" fill="#39d353"/>
-    <text x="97" y="9" fill="#94a3b8" font-family="monospace" font-size="10">More</text>
-  </g>
-
-  <!-- SECTION 2: ACTIVITY OVERVIEW & CONTRIBUTED REPOS CARD -->
-  <rect x="30" y="306" width="860" height="240" rx="10" fill="#090d16" stroke="#1e293b" stroke-width="1"/>
-  
-  <!-- Left Side: Contributed Repositories -->
-  <text x="50" y="334" fill="#e2e8f0" font-family="monospace" font-size="13" font-weight="bold">Activity overview</text>
-  <text x="50" y="366" fill="#94a3b8" font-family="monospace" font-size="12">📖 Contributed to</text>
-
-  ${repoListSvg}
-  <text x="75" y="${otherRepoTextY}" fill="#94a3b8" font-family="monospace" font-size="11">and ${otherCount} other repositories</text>
-
-  <!-- Divider Line -->
-  <line x1="440" y1="324" x2="440" y2="526" stroke="#1e293b" stroke-width="1.5"/>
-
-  <!-- Right Side: Cross/Diamond Activity Chart -->
-  <!-- Cross Axes -->
-  <line x1="${cx - rMax}" y1="${cy}" x2="${cx + rMax}" y2="${cy}" stroke="#22c55e" stroke-width="1.5"/>
-  <line x1="${cx}" y1="${cy - rMax}" x2="${cx}" y2="${cy + rMax}" stroke="#22c55e" stroke-width="1.5"/>
-
-  <!-- Cross Axis Labels -->
-  <text x="${cx}" y="${cy - rMax - 10}" fill="#94a3b8" font-family="monospace" font-size="11" text-anchor="middle">Code review</text>
-  <text x="${cx + rMax + 12}" y="${cy + 4}" fill="#94a3b8" font-family="monospace" font-size="11" text-anchor="start">Issues</text>
-  <text x="${cx}" y="${cy + rMax + 24}" fill="#94a3b8" font-family="monospace" font-size="11" text-anchor="middle">${pctPRs}% Pull requests</text>
-  <text x="${cx - rMax - 12}" y="${cy + 4}" fill="#94a3b8" font-family="monospace" font-size="11" text-anchor="end">${pctCommits}% Commits</text>
-
-  <!-- Activity Polygon & Points -->
-  <polygon points="${crossPolyStr}" fill="url(#crossGrad)" stroke="#39d353" stroke-width="2"/>
-  <circle cx="${pLeft.x}" cy="${pLeft.y}" r="4" fill="#39d353" stroke="#090d16" stroke-width="1.5"/>
-  <circle cx="${pTop.x}" cy="${pTop.y}" r="4" fill="#39d353" stroke="#090d16" stroke-width="1.5"/>
-  <circle cx="${pRight.x}" cy="${pRight.y}" r="4" fill="#39d353" stroke="#090d16" stroke-width="1.5"/>
-  <circle cx="${pBottom.x}" cy="${pBottom.y}" r="4" fill="#39d353" stroke="#090d16" stroke-width="1.5"/>
-
-  <!-- SECTION 3: BOTTOM ANALYTICS CARDS -->
-  <!-- Contribution History Area Curve Card -->
-  <rect x="30" y="560" width="860" height="210" rx="10" fill="#090d16" stroke="#1e293b" stroke-width="1"/>
-  <text x="48" y="584" fill="#10b981" font-family="monospace" font-size="12" font-weight="bold">📈 CONTRIBUTION HISTORY OVER TIME</text>
-  <rect x="760" y="568" width="116" height="22" rx="6" fill="#064e3b" stroke="#10b981" stroke-width="0.8"/>
-  <text x="818" y="583" fill="#34d399" font-family="monospace" font-size="10" text-anchor="middle">Monthly Aggregated</text>
-
-  <line x1="50" y1="630" x2="880" y2="630" stroke="#1e293b" stroke-dasharray="3 3"/>
-  <line x1="50" y1="666" x2="880" y2="666" stroke="#1e293b" stroke-dasharray="3 3"/>
-  <line x1="50" y1="702" x2="880" y2="702" stroke="#1e293b" stroke-dasharray="3 3"/>
-  <line x1="50" y1="740" x2="880" y2="740" stroke="#1e293b"/>
+  <line x1="50" y1="128" x2="880" y2="128" stroke="#1e293b" stroke-dasharray="3 3"/>
+  <line x1="50" y1="166" x2="880" y2="166" stroke="#1e293b" stroke-dasharray="3 3"/>
+  <line x1="50" y1="204" x2="880" y2="204" stroke="#1e293b" stroke-dasharray="3 3"/>
+  <line x1="50" y1="240" x2="880" y2="240" stroke="#1e293b"/>
 
   <path d="${areaD}" fill="url(#areaGrad)"/>
   <path d="${lineD}" fill="none" stroke="#10b981" stroke-width="2.5"/>
   ${areaLabelsSvg}
 
-  <!-- Productive Days Card -->
-  <rect x="30" y="790" width="420" height="205" rx="10" fill="#090d16" stroke="#1e293b" stroke-width="1"/>
-  <text x="48" y="814" fill="#10b981" font-family="monospace" font-size="12" font-weight="bold">📅 PRODUCTIVE DAYS OF THE WEEK</text>
-  <line x1="50" y1="960" x2="430" y2="960" stroke="#1e293b"/>
+  <!-- Bottom Left Card: Productive Days -->
+  <rect x="30" y="290" width="420" height="205" rx="10" fill="#090d16" stroke="#1e293b" stroke-width="1"/>
+  <text x="48" y="314" fill="#10b981" font-family="monospace" font-size="12" font-weight="bold">📅 PRODUCTIVE DAYS OF THE WEEK</text>
+  <line x1="50" y1="460" x2="430" y2="460" stroke="#1e293b"/>
   ${weeklyBarsSvg}
 
-  <!-- Peak Coding Hours Card -->
-  <rect x="470" y="790" width="420" height="205" rx="10" fill="#090d16" stroke="#1e293b" stroke-width="1"/>
-  <text x="488" y="814" fill="#10b981" font-family="monospace" font-size="12" font-weight="bold">🕒 PEAK CODING HOURS (IST)</text>
-  <line x1="490" y1="960" x2="870" y2="960" stroke="#1e293b"/>
+  <!-- Bottom Right Card: Peak Coding Hours -->
+  <rect x="470" y="290" width="420" height="205" rx="10" fill="#090d16" stroke="#1e293b" stroke-width="1"/>
+  <text x="488" y="314" fill="#10b981" font-family="monospace" font-size="12" font-weight="bold">🕒 PEAK CODING HOURS (IST)</text>
+  <line x1="490" y1="460" x2="870" y2="460" stroke="#1e293b"/>
   ${hourlyBarsSvg}
 </svg>`;
 }
@@ -698,7 +533,7 @@ async function run() {
   const { user, repos, languages, contributionDays, events } = await fetchGitHubData();
 
   const toolboxSvg = generateToolboxRadarSVG(languages, USERNAME);
-  const activitySvg = generateActivityAnalyticsSVG(contributionDays, events, repos);
+  const activitySvg = generateActivityAnalyticsSVG(contributionDays, events);
 
   const toolboxPath = path.join(OUTPUT_DIR, 'toolbox_radar.svg');
   const activityPath = path.join(OUTPUT_DIR, 'activity_analytics.svg');
