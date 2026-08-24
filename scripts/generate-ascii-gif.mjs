@@ -199,13 +199,16 @@ async function generateAnimatedAsciiGif() {
 
     frameBufs.push({
       data: rawRgba,
-      delay: f === totalFrames ? 600 : 12,
+      // 14 = 140ms per frame during reveal (~3.0s total reveal sequence)
+      // Final frame delay 0 (stops permanently when reveal finishes)
+      delay: f === totalFrames ? 0 : 14,
     });
   }
 
-  // Quantize & Encode GIF using omggif
+  // Quantize & Encode GIF using omggif WITHOUT infinite loop Netscape block
+  // Omitting `loop` option sets loop_count to null => GIF plays EXACTLY ONCE on load/refresh and stops on final frame.
   const gifBuf = Buffer.alloc(width * height * totalFrames * 4 + 4096);
-  const gifWriter = new GifWriter(gifBuf, width, height, { loop: 0 });
+  const gifWriter = new GifWriter(gifBuf, width, height, {});
 
   for (const frame of frameBufs) {
     const palette = [];
@@ -250,7 +253,7 @@ async function generateAnimatedAsciiGif() {
   const outputPath = path.join(OUTPUT_DIR, 'animated_ascii.gif');
   fs.writeFileSync(outputPath, finalGif);
 
-  console.log(`Generated dynamic animated GIF: ${outputPath} (${(finalGif.length / 1024).toFixed(1)} KB)`);
+  console.log(`Generated non-looping single-play animated GIF: ${outputPath} (${(finalGif.length / 1024).toFixed(1)} KB)`);
   console.log('Dynamic Stats Used:', JSON.stringify(stats, null, 2));
 }
 
