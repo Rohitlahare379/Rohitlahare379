@@ -1,7 +1,7 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="dark_mode.svg" />
-  <source media="(prefers-color-scheme: light)" srcset="light_mode.svg" />
-  <img alt="Rohitlahare379's GitHub profile" src="dark_mode.svg" />
+  <source media="(prefers-color-scheme: dark)" srcset="generated/animated_ascii.gif" />
+  <source media="(prefers-color-scheme: light)" srcset="generated/animated_ascii.gif" />
+  <img alt="Rohitlahare379's Animated GitHub Profile" src="generated/animated_ascii.gif" />
 </picture>
 
 ## Hi there 👋

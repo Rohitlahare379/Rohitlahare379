@@ -1,0 +1,24 @@
+{
+  "name": "rohitlahare379",
+  "version": "1.0.0",
+  "description": "<picture>   <source media=\"(prefers-color-scheme: dark)\" srcset=\"dark_mode.svg\" />   <source media=\"(prefers-color-scheme: light)\" srcset=\"light_mode.svg\" />   <img alt=\"Rohitlahare379's GitHub profile\" src=\"dark_mode.svg\" /> </picture>",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Rohitlahare379/Rohitlahare379.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Rohitlahare379/Rohitlahare379/issues"
+  },
+  "homepage": "https://github.com/Rohitlahare379/Rohitlahare379#readme",
+  "dependencies": {
+    "omggif": "^1.0.10",
+    "sharp": "^0.35.3"
+  }
+}
