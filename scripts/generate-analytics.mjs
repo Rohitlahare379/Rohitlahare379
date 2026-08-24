@@ -42,6 +42,7 @@ async function fetchGitHubData() {
   let user = { login: USERNAME, public_repos: 22 };
   let repos = [];
   let events = [];
+  let contributionDays = [];
 
   try {
     const userRes = await fetch(`https://api.github.com/users/${USERNAME}`, { headers });
@@ -67,6 +68,29 @@ async function fetchGitHubData() {
     if (eventsRes.ok) events = await eventsRes.json();
   } catch (e) {
     console.warn('Could not fetch user events:', e.message);
+  }
+
+  // Fetch Contribution HTML Graph
+  try {
+    const contribRes = await fetch(`https://github.com/users/${USERNAME}/contributions`);
+    if (contribRes.ok) {
+      const html = await contribRes.text();
+      const rectRegex = /data-date="(\d{4}-\d{2}-\d{2})"[^>]*data-level="(\d)"[^>]*>(?:<tool-tip[^>]*>(\d+|No) contribution)?/g;
+      let match;
+      while ((match = rectRegex.exec(html)) !== null) {
+        const dateStr = match[1];
+        const level = parseInt(match[2], 10);
+        let count = 0;
+        if (match[3] && match[3] !== 'No') {
+          count = parseInt(match[3], 10);
+        } else if (level > 0) {
+          count = level * 2;
+        }
+        contributionDays.push({ date: dateStr, count, level });
+      }
+    }
+  } catch (e) {
+    console.warn('Could not fetch contribution graph HTML:', e.message);
   }
 
   // Fetch EXACT language byte breakdown across all non-fork repositories
@@ -103,10 +127,10 @@ async function fetchGitHubData() {
     }))
     .sort((a, b) => b.bytes - a.bytes);
 
-  return { user, repos, events, languages };
+  return { user, repos, events, languages, contributionDays };
 }
 
-// Helper for radar chart geometry
+// Geometry helpers
 function createRadarPoints(center, radius, values, maxVal = 100) {
   const count = values.length;
   const points = [];
@@ -174,7 +198,6 @@ function generateToolboxRadarSVG(languages, username) {
     { name: 'DSA', val: 90 },
   ];
 
-  // Top languages directly from exact API statistics
   const displayLangs =
     languages.length > 0
       ? languages.slice(0, 6)
@@ -189,7 +212,6 @@ function generateToolboxRadarSVG(languages, username) {
 
   const maxPct = Math.max(...displayLangs.map((l) => l.percentage), 1);
   const langRadarSubjects = displayLangs.map((l) => {
-    // Proportional ratio score: top language gets 100, others scale accurately
     const ratioScore = Math.min(100, Math.max(18, Math.round((l.percentage / maxPct) * 82 + 18)));
     return { name: l.name, val: ratioScore };
   });
@@ -219,7 +241,6 @@ function generateToolboxRadarSVG(languages, username) {
   const skillPolyStr = skillPoints.map((p) => `${p.x},${p.y}`).join(' ');
   const langPolyStr = langPoints.map((p) => `${p.x},${p.y}`).join(' ');
 
-  // Tech stack icons top bar
   const techBadges = [
     { label: 'Python', bg: '#1e1b4b', color: '#818cf8' },
     { label: 'TS', bg: '#1e3a8a', color: '#3178c6' },
@@ -248,7 +269,6 @@ function generateToolboxRadarSVG(languages, username) {
     })
     .join('');
 
-  // Language cards SVG (bottom section)
   const langCardsSvg = displayLangs
     .map((l, idx) => {
       const col = idx % 3;
@@ -281,10 +301,8 @@ function generateToolboxRadarSVG(languages, username) {
     </linearGradient>
   </defs>
 
-  <!-- Background Card -->
   <rect width="920" height="540" rx="14" fill="#0d1117" stroke="#30363d" stroke-width="1.5"/>
 
-  <!-- Terminal Header -->
   <circle cx="30" cy="24" r="5" fill="#f87171"/>
   <circle cx="46" cy="24" r="5" fill="#fbbf24"/>
   <circle cx="62" cy="24" r="5" fill="#34d399"/>
@@ -293,62 +311,121 @@ function generateToolboxRadarSVG(languages, username) {
   <text x="890" y="28" fill="#64748b" font-family="monospace" font-size="11" font-weight="bold" text-anchor="end">SKILL &amp; LANGUAGE RADAR ANALYTICS</text>
   <line x1="20" y1="40" x2="900" y2="40" stroke="#21262d" stroke-width="1"/>
 
-  <!-- Tech Badges Bar -->
   ${badgeSvg}
 
-  <!-- Left Radar Card: SKILL RADAR -->
   <rect x="30" y="95" width="410" height="260" rx="10" fill="#090d16" stroke="#1e293b" stroke-width="1"/>
   <text x="48" y="118" fill="#10b981" font-family="monospace" font-size="12" font-weight="bold">&lt;/&gt; SKILL RADAR</text>
   <text x="422" y="118" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">Core Proficiencies</text>
   
-  <!-- Skill Grid -->
   ${skillGrid.map((p) => `<polygon points="${p}" fill="none" stroke="#1e293b" stroke-dasharray="3 3" stroke-width="1"/>`).join('')}
   ${skillAxes.map((a) => `<line x1="${a.x1}" y1="${a.y1}" x2="${a.x2}" y2="${a.y2}" stroke="#1e293b" stroke-dasharray="3 3" stroke-width="1"/>`).join('')}
   <polygon points="${skillPolyStr}" fill="url(#skillGrad)" stroke="#10b981" stroke-width="2"/>
   ${skillPoints.map((p) => `<circle cx="${p.x}" cy="${p.y}" r="4" fill="#34d399" stroke="#090d16" stroke-width="1.5"/>`).join('')}
   ${skillSubjects.map((s, i) => `<text x="${skillLabels[i].x}" y="${skillLabels[i].y}" fill="#94a3b8" font-family="monospace" font-size="10" text-anchor="${skillLabels[i].anchor}">${s.name}</text>`).join('')}
 
-  <!-- Right Radar Card: LANGUAGE MIX RADAR -->
   <rect x="470" y="95" width="420" height="260" rx="10" fill="#090d16" stroke="#1e293b" stroke-width="1"/>
   <text x="488" y="118" fill="#10b981" font-family="monospace" font-size="12" font-weight="bold">${username} - LANGUAGE MIX</text>
   <text x="872" y="118" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">Repository Code Ratio</text>
   
-  <!-- Lang Grid -->
   ${langGrid.map((p) => `<polygon points="${p}" fill="none" stroke="#1e293b" stroke-dasharray="3 3" stroke-width="1"/>`).join('')}
   ${langAxes.map((a) => `<line x1="${a.x1}" y1="${a.y1}" x2="${a.x2}" y2="${a.y2}" stroke="#1e293b" stroke-dasharray="3 3" stroke-width="1"/>`).join('')}
   <polygon points="${langPolyStr}" fill="url(#langGrad)" stroke="#22c55e" stroke-width="2"/>
   ${langPoints.map((p) => `<circle cx="${p.x}" cy="${p.y}" r="4" fill="#4ade80" stroke="#090d16" stroke-width="1.5"/>`).join('')}
   ${langRadarSubjects.map((s, i) => `<text x="${langLabels[i].x}" y="${langLabels[i].y}" fill="#94a3b8" font-family="monospace" font-size="10" text-anchor="${langLabels[i].anchor}">${s.name}</text>`).join('')}
 
-  <!-- Language Distribution Header -->
   <text x="30" y="376" fill="#64748b" font-family="monospace" font-size="11" font-weight="bold">LANGUAGE DISTRIBUTION ACROSS REPOSITORIES</text>
 
-  <!-- Language Progress Cards -->
   ${langCardsSvg}
 </svg>`;
 }
 
-function generateActivityAnalyticsSVG() {
-  const months = ['Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
-  const trendVals = [24, 38, 45, 52, 68, 74, 89, 94, 82, 76, 88, 95];
+function generateActivityAnalyticsSVG(contributionDays, events) {
+  // 1. Process Monthly Trends over the last 12 months dynamically
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const today = new Date();
+  const monthlyData = [];
+
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    const monthLabel = monthNames[d.getMonth()];
+    const yearMonthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    monthlyData.push({ month: monthLabel, yearMonthStr, count: 0 });
+  }
+
+  // Map 365 daily contribution counts into corresponding month
+  if (contributionDays && contributionDays.length > 0) {
+    contributionDays.forEach((day) => {
+      if (day.date) {
+        const datePrefix = day.date.substring(0, 7); // YYYY-MM
+        const target = monthlyData.find((m) => m.yearMonthStr === datePrefix);
+        if (target) {
+          target.count += day.count;
+        }
+      }
+    });
+  }
+
+  const months = monthlyData.map((m) => m.month);
+  const trendVals = monthlyData.map((m) => m.count);
+  const maxTrendVal = Math.max(...trendVals, 10);
+
+  // 2. Process Productive Days of the Week (Mon - Sun) dynamically
+  // 0 = Sun, 1 = Mon, ..., 6 = Sat
+  const dowCounts = [0, 0, 0, 0, 0, 0, 0];
+  if (contributionDays && contributionDays.length > 0) {
+    contributionDays.forEach((day) => {
+      const dt = new Date(day.date);
+      if (!isNaN(dt.getTime())) {
+        dowCounts[dt.getDay()] += day.count;
+      }
+    });
+  }
 
   const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const dayVals = [42, 68, 85, 79, 64, 38, 25];
+  // Re-order dowCounts to Mon (1), Tue (2), Wed (3), Thu (4), Fri (5), Sat (6), Sun (0)
+  const dayVals = [
+    dowCounts[1],
+    dowCounts[2],
+    dowCounts[3],
+    dowCounts[4],
+    dowCounts[5],
+    dowCounts[6],
+    dowCounts[0],
+  ];
+  const maxDayVal = Math.max(...dayVals, 10);
 
+  // 3. Process Peak Coding Hours (IST) dynamically from GitHub Events
+  const hourBuckets = new Array(8).fill(0); // 00, 03, 06, 09, 12, 15, 18, 21
   const hours = ['00:00', '03:00', '06:00', '09:00', '12:00', '15:00', '18:00', '21:00'];
-  const hourVals = [12, 4, 8, 45, 62, 188, 94, 72];
+
+  if (Array.isArray(events) && events.length > 0) {
+    events.forEach((ev) => {
+      if (ev.created_at) {
+        const dt = new Date(ev.created_at);
+        // IST = UTC + 5:30
+        const istHour = (dt.getUTCHours() + 5 + Math.floor((dt.getUTCMinutes() + 30) / 60)) % 24;
+        const bucket = Math.floor(istHour / 3);
+        hourBuckets[bucket] += 1;
+      }
+    });
+  } else {
+    // Graceful fallback seed if events array is empty
+    hourBuckets[0] = 1; hourBuckets[1] = 1; hourBuckets[2] = 2; hourBuckets[3] = 0;
+    hourBuckets[4] = 1; hourBuckets[5] = 7; hourBuckets[6] = 3; hourBuckets[7] = 14;
+  }
+  const maxHourVal = Math.max(...hourBuckets, 5);
 
   // Construct Area Curve Path
   const chartX = 50;
   const chartY = 240;
   const chartW = 830;
-  const chartH = 150;
+  const chartH = 140;
   const stepX = chartW / (trendVals.length - 1);
 
   const points = trendVals.map((v, i) => {
     const x = chartX + i * stepX;
-    const y = chartY - (v / 100) * chartH;
-    return { x, y };
+    const y = chartY - (v / maxTrendVal) * chartH;
+    return { x: Number(x.toFixed(1)), y: Number(y.toFixed(1)) };
   });
 
   let lineD = `M ${points[0].x} ${points[0].y}`;
@@ -359,12 +436,12 @@ function generateActivityAnalyticsSVG() {
     const cy1 = p1.y;
     const cx2 = p2.x - stepX / 2;
     const cy2 = p2.y;
-    lineD += ` C ${cx1} ${cy1}, ${cx2} ${cy2}, ${p2.x} ${p2.y}`;
+    lineD += ` C ${cx1.toFixed(1)} ${cy1.toFixed(1)}, ${cx2.toFixed(1)} ${cy2.toFixed(1)}, ${p2.x} ${p2.y}`;
   }
 
   const areaD = `${lineD} L ${points[points.length - 1].x} ${chartY} L ${points[0].x} ${chartY} Z`;
 
-  // X-axis & Y-axis labels for Area chart
+  // Area Chart X Labels
   const areaLabelsSvg = months
     .map((m, i) => {
       const x = chartX + i * stepX;
@@ -378,12 +455,11 @@ function generateActivityAnalyticsSVG() {
   const wStartX = 65;
   const wBaseY = 460;
   const wMaxH = 100;
-  const wMaxVal = 100;
 
   const weeklyBarsSvg = dayVals
     .map((v, i) => {
       const x = wStartX + i * wStepX;
-      const barH = (v / wMaxVal) * wMaxH;
+      const barH = Math.max(4, Math.round((v / maxDayVal) * wMaxH));
       const y = wBaseY - barH;
       return `
       <rect x="${x}" y="${y}" width="${wBarWidth}" height="${barH}" rx="4" fill="#10b981"/>
@@ -397,12 +473,11 @@ function generateActivityAnalyticsSVG() {
   const hStartX = 500;
   const hBaseY = 460;
   const hMaxH = 100;
-  const hMaxVal = 200;
 
-  const hourlyBarsSvg = hourVals
+  const hourlyBarsSvg = hourBuckets
     .map((v, i) => {
       const x = hStartX + i * hStepX;
-      const barH = (v / hMaxVal) * hMaxH;
+      const barH = Math.max(4, Math.round((v / maxHourVal) * hMaxH));
       const y = hBaseY - barH;
       return `
       <rect x="${x}" y="${y}" width="${hBarWidth}" height="${barH}" rx="4" fill="#22c55e"/>
@@ -465,10 +540,10 @@ function generateActivityAnalyticsSVG() {
 
 async function run() {
   console.log('Fetching GitHub profile data for analytics generation...');
-  const { user, repos, languages } = await fetchGitHubData();
+  const { user, repos, languages, contributionDays, events } = await fetchGitHubData();
 
   const toolboxSvg = generateToolboxRadarSVG(languages, USERNAME);
-  const activitySvg = generateActivityAnalyticsSVG();
+  const activitySvg = generateActivityAnalyticsSVG(contributionDays, events);
 
   const toolboxPath = path.join(OUTPUT_DIR, 'toolbox_radar.svg');
   const activityPath = path.join(OUTPUT_DIR, 'activity_analytics.svg');
