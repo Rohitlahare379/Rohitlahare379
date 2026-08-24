@@ -528,21 +528,118 @@ function generateActivityAnalyticsSVG(contributionDays, events) {
 </svg>`;
 }
 
+function generateActivityOverviewSVG(events, repos) {
+  let commits = 0;
+  let prs = 0;
+  let issues = 0;
+  let reviews = 0;
+  const reposContributedSet = new Set();
+
+  if (Array.isArray(events)) {
+    events.forEach((e) => {
+      if (e.repo && e.repo.name) reposContributedSet.add(e.repo.name);
+      if (e.type === 'PushEvent') {
+        commits += e.payload?.commits?.length || 1;
+      } else if (e.type === 'PullRequestEvent') {
+        prs += 1;
+      } else if (e.type === 'IssuesEvent') {
+        issues += 1;
+      } else if (e.type === 'PullRequestReviewEvent' || e.type === 'PullRequestReviewCommentEvent') {
+        reviews += 1;
+      }
+    });
+  }
+
+  const totalTypes = commits + prs + issues + reviews || 1;
+  const pctCommits = Math.round((commits / totalTypes) * 100) || 100;
+  const pctPRs = Math.round((prs / totalTypes) * 100) || 0;
+  const pctIssues = Math.round((issues / totalTypes) * 100) || 0;
+  const pctReviews = Math.round((reviews / totalTypes) * 100) || 0;
+
+  const repoList = Array.from(reposContributedSet);
+  if (repoList.length === 0 && Array.isArray(repos)) {
+    repos.slice(0, 3).forEach((r) => repoList.push(r.full_name || `${USERNAME}/${r.name}`));
+  }
+
+  const displayRepoList = repoList.slice(0, 3);
+  const otherCount = Math.max(0, (repos.length || 22) - displayRepoList.length);
+
+  const repoListSvg = displayRepoList
+    .map((r, i) => {
+      const y = 100 + i * 24;
+      return `<text x="50" y="${y}" fill="#58a6ff" font-family="monospace" font-size="12" font-weight="bold">${r}</text>`;
+    })
+    .join('');
+
+  const otherRepoTextY = 100 + displayRepoList.length * 24;
+
+  const cx = 650;
+  const cy = 120;
+  const rMax = 65;
+
+  const pTop = { x: cx, y: cy - Math.max(8, (pctReviews / 100) * rMax) };
+  const pRight = { x: cx + Math.max(8, (pctIssues / 100) * rMax), y: cy };
+  const pBottom = { x: cx, y: cy + Math.max(8, (pctPRs / 100) * rMax) };
+  const pLeft = { x: cx - Math.max(8, (pctCommits / 100) * rMax), y: cy };
+
+  const crossPolyStr = `${pTop.x.toFixed(1)},${pTop.y.toFixed(1)} ${pRight.x.toFixed(1)},${pRight.y.toFixed(1)} ${pBottom.x.toFixed(1)},${pBottom.y.toFixed(1)} ${pLeft.x.toFixed(1)},${pLeft.y.toFixed(1)}`;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="920" height="240" viewBox="0 0 920 240" role="img" aria-label="GitHub Activity Overview">
+  <defs>
+    <linearGradient id="crossGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#39d353" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#10b981" stop-opacity="0.2"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="920" height="240" rx="12" fill="#0d1117" stroke="#30363d" stroke-width="1.5"/>
+
+  <!-- Left Side: Contributed Repositories -->
+  <text x="30" y="38" fill="#e2e8f0" font-family="monospace" font-size="14" font-weight="bold">Activity overview</text>
+  <text x="30" y="68" fill="#94a3b8" font-family="monospace" font-size="12">📖 Contributed to</text>
+
+  ${repoListSvg}
+  <text x="50" y="${otherRepoTextY}" fill="#94a3b8" font-family="monospace" font-size="11">and ${otherCount} other repositories</text>
+
+  <!-- Divider Line -->
+  <line x1="440" y1="20" x2="440" y2="220" stroke="#21262d" stroke-width="1.5"/>
+
+  <!-- Right Side: 4-Axis Cross Activity Chart -->
+  <line x1="${cx - rMax}" y1="${cy}" x2="${cx + rMax}" y2="${cy}" stroke="#22c55e" stroke-width="1.5"/>
+  <line x1="${cx}" y1="${cy - rMax}" x2="${cx}" y2="${cy + rMax}" stroke="#22c55e" stroke-width="1.5"/>
+
+  <text x="${cx}" y="${cy - rMax - 10}" fill="#94a3b8" font-family="monospace" font-size="11" text-anchor="middle">Code review</text>
+  <text x="${cx + rMax + 12}" y="${cy + 4}" fill="#94a3b8" font-family="monospace" font-size="11" text-anchor="start">Issues</text>
+  <text x="${cx}" y="${cy + rMax + 24}" fill="#94a3b8" font-family="monospace" font-size="11" text-anchor="middle">${pctPRs}% Pull requests</text>
+  <text x="${cx - rMax - 12}" y="${cy + 4}" fill="#94a3b8" font-family="monospace" font-size="11" text-anchor="end">${pctCommits}% Commits</text>
+
+  <polygon points="${crossPolyStr}" fill="url(#crossGrad)" stroke="#39d353" stroke-width="2"/>
+  <circle cx="${pLeft.x}" cy="${pLeft.y}" r="4" fill="#39d353" stroke="#090d16" stroke-width="1.5"/>
+  <circle cx="${pTop.x}" cy="${pTop.y}" r="4" fill="#39d353" stroke="#090d16" stroke-width="1.5"/>
+  <circle cx="${pRight.x}" cy="${pRight.y}" r="4" fill="#39d353" stroke="#090d16" stroke-width="1.5"/>
+  <circle cx="${pBottom.x}" cy="${pBottom.y}" r="4" fill="#39d353" stroke="#090d16" stroke-width="1.5"/>
+</svg>`;
+}
+
 async function run() {
   console.log('Fetching GitHub profile data for analytics generation...');
   const { user, repos, languages, contributionDays, events } = await fetchGitHubData();
 
   const toolboxSvg = generateToolboxRadarSVG(languages, USERNAME);
   const activitySvg = generateActivityAnalyticsSVG(contributionDays, events);
+  const overviewSvg = generateActivityOverviewSVG(events, repos);
 
   const toolboxPath = path.join(OUTPUT_DIR, 'toolbox_radar.svg');
   const activityPath = path.join(OUTPUT_DIR, 'activity_analytics.svg');
+  const overviewPath = path.join(OUTPUT_DIR, 'activity_overview.svg');
 
   fs.writeFileSync(toolboxPath, toolboxSvg, 'utf8');
   fs.writeFileSync(activityPath, activitySvg, 'utf8');
+  fs.writeFileSync(overviewPath, overviewSvg, 'utf8');
 
   console.log(`Generated: ${toolboxPath}`);
   console.log(`Generated: ${activityPath}`);
+  console.log(`Generated: ${overviewPath}`);
 }
 
 run().catch((err) => {

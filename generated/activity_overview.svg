@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="240" viewBox="0 0 920 240" role="img" aria-label="GitHub Activity Overview">
+  <defs>
+    <linearGradient id="crossGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#39d353" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#10b981" stop-opacity="0.2"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="920" height="240" rx="12" fill="#0d1117" stroke="#30363d" stroke-width="1.5"/>
+
+  <!-- Left Side: Contributed Repositories -->
+  <text x="30" y="38" fill="#e2e8f0" font-family="monospace" font-size="14" font-weight="bold">Activity overview</text>
+  <text x="30" y="68" fill="#94a3b8" font-family="monospace" font-size="12">📖 Contributed to</text>
+
+  
+  <text x="50" y="100" fill="#94a3b8" font-family="monospace" font-size="11">and 22 other repositories</text>
+
+  <!-- Divider Line -->
+  <line x1="440" y1="20" x2="440" y2="220" stroke="#21262d" stroke-width="1.5"/>
+
+  <!-- Right Side: 4-Axis Cross Activity Chart -->
+  <line x1="585" y1="120" x2="715" y2="120" stroke="#22c55e" stroke-width="1.5"/>
+  <line x1="650" y1="55" x2="650" y2="185" stroke="#22c55e" stroke-width="1.5"/>
+
+  <text x="650" y="45" fill="#94a3b8" font-family="monospace" font-size="11" text-anchor="middle">Code review</text>
+  <text x="727" y="124" fill="#94a3b8" font-family="monospace" font-size="11" text-anchor="start">Issues</text>
+  <text x="650" y="209" fill="#94a3b8" font-family="monospace" font-size="11" text-anchor="middle">0% Pull requests</text>
+  <text x="573" y="124" fill="#94a3b8" font-family="monospace" font-size="11" text-anchor="end">100% Commits</text>
+
+  <polygon points="650.0,112.0 658.0,120.0 650.0,128.0 585.0,120.0" fill="url(#crossGrad)" stroke="#39d353" stroke-width="2"/>
+  <circle cx="585" cy="120" r="4" fill="#39d353" stroke="#090d16" stroke-width="1.5"/>
+  <circle cx="650" cy="112" r="4" fill="#39d353" stroke="#090d16" stroke-width="1.5"/>
+  <circle cx="658" cy="120" r="4" fill="#39d353" stroke="#090d16" stroke-width="1.5"/>
+  <circle cx="650" cy="128" r="4" fill="#39d353" stroke="#090d16" stroke-width="1.5"/>
+</svg>

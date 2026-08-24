@@ -33,3 +33,7 @@ Student engineer passionate about algorithms, systems, AI, and building high-per
 ### 📊 Activity Analytics
 
 ![Activity Analytics & Trends](generated/activity_analytics.svg)
+
+---
+
+![Activity Overview](generated/activity_overview.svg)
