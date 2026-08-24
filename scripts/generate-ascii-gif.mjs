@@ -26,7 +26,7 @@ if (GITHUB_TOKEN) {
 async function fetchProfileData() {
   let user = {
     login: USERNAME,
-    created_at: '2024-08-05T00:00:00Z',
+    created_at: '2025-08-05T15:20:15Z',
     location: 'Bengaluru, Karnataka, India',
     public_repos: 22,
     followers: 1,
@@ -60,8 +60,8 @@ async function fetchProfileData() {
     console.warn('Could not fetch user events:', e.message);
   }
 
-  // Calculate Uptime dynamically from account creation date
-  const createdDate = new Date(user.created_at || '2024-08-05T00:00:00Z');
+  // Calculate Uptime dynamically from account creation date (2025-08-05)
+  const createdDate = new Date(user.created_at || '2025-08-05T15:20:15Z');
   const now = new Date();
   const diffTime = Math.abs(now - createdDate);
   const totalDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
