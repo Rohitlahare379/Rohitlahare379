@@ -23,19 +23,20 @@ if (GITHUB_TOKEN) {
 
 // Language Colors Map
 const LANGUAGE_COLORS = {
-  JavaScript: '#f1e05a',
   TypeScript: '#3178c6',
   Python: '#3572A5',
+  JavaScript: '#f1e05a',
   Java: '#b07219',
-  'C++': '#f34b7d',
-  C: '#555555',
-  HTML: '#e34c26',
   CSS: '#563d7c',
+  C: '#555555',
+  'C++': '#f34b7d',
+  HTML: '#e34c26',
   Go: '#00ADD8',
   Rust: '#dea584',
   PHP: '#4F5D95',
   Shell: '#89e051',
   SQL: '#003B57',
+  PostgreSQL: '#4169E1',
 };
 
 async function fetchGitHubData() {
@@ -78,7 +79,7 @@ function createRadarPoints(center, radius, values, maxVal = 100) {
   const points = [];
   for (let i = 0; i < count; i++) {
     const angle = -Math.PI / 2 + i * ((2 * Math.PI) / count);
-    const valRatio = Math.min(1, Math.max(0.1, values[i] / maxVal));
+    const valRatio = Math.min(1, Math.max(0.12, values[i] / maxVal));
     const r = radius * valRatio;
     const x = center.x + r * Math.cos(angle);
     const y = center.y + r * Math.sin(angle);
@@ -118,8 +119,9 @@ function createLabelCoords(center, radius, count) {
   const coords = [];
   for (let i = 0; i < count; i++) {
     const angle = -Math.PI / 2 + i * ((2 * Math.PI) / count);
-    const x = center.x + (radius + 24) * Math.cos(angle);
-    const y = center.y + (radius + 18) * Math.sin(angle);
+    const labelDistance = radius + 18;
+    const x = center.x + labelDistance * Math.cos(angle);
+    const y = center.y + labelDistance * Math.sin(angle) + 4; // slight vertical balance
     let anchor = 'middle';
     if (Math.cos(angle) > 0.3) anchor = 'start';
     if (Math.cos(angle) < -0.3) anchor = 'end';
@@ -139,19 +141,37 @@ function generateToolboxRadarSVG(languages, username) {
     { name: 'DSA', val: 90 },
   ];
 
-  const langRadarSubjects = [
-    { name: 'JavaScript', val: 100 },
-    { name: 'TypeScript', val: 77 },
-    { name: 'CSS', val: 46 },
-    { name: 'HTML', val: 38 },
-    { name: 'Python', val: 61 },
-    { name: 'PL/pgSQL', val: 25 },
-    { name: 'PowerShell', val: 18 },
-  ];
+  // Dynamic Language Mix Radar: build strictly from actual repository language distribution
+  const displayLangs =
+    languages.length > 0
+      ? languages.slice(0, 6)
+      : [
+          { name: 'TypeScript', percentage: 74.9, repoCount: 8, bytes: 145000, color: '#3178c6' },
+          { name: 'Python', percentage: 12.2, repoCount: 5, bytes: 89000, color: '#3572A5' },
+          { name: 'JavaScript', percentage: 9.9, repoCount: 6, bytes: 112000, color: '#f1e05a' },
+          { name: 'Java', percentage: 1.6, repoCount: 3, bytes: 42000, color: '#b07219' },
+          { name: 'CSS', percentage: 1.0, repoCount: 2, bytes: 31000, color: '#563d7c' },
+          { name: 'C', percentage: 0.4, repoCount: 1, bytes: 12000, color: '#555555' },
+        ];
 
-  const c1 = { x: 230, y: 220 };
-  const c2 = { x: 670, y: 220 };
-  const r = 110;
+  const maxPct = Math.max(...displayLangs.map((l) => l.percentage), 1);
+  const langRadarSubjects = displayLangs.map((l) => {
+    // Proportional ratio score: top language is 100, others scale nicely
+    const ratioScore = Math.min(100, Math.max(18, Math.round((l.percentage / maxPct) * 82 + 18)));
+    return { name: l.name, val: ratioScore };
+  });
+
+  // Ensure at least 6 points for a balanced radar
+  while (langRadarSubjects.length < 6) {
+    const fallbackNames = ['HTML', 'SQL', 'Git'];
+    const name = fallbackNames[langRadarSubjects.length % fallbackNames.length];
+    langRadarSubjects.push({ name, val: 20 });
+  }
+
+  // Adjust center y=240 and radius=85 so top labels sit cleanly below y=124 title and inside card bounds!
+  const c1 = { x: 235, y: 240 };
+  const c2 = { x: 675, y: 240 };
+  const r = 85;
 
   const skillGrid = createGridPolygons(c1, r, skillSubjects.length);
   const langGrid = createGridPolygons(c2, r, langRadarSubjects.length);
@@ -187,7 +207,7 @@ function generateToolboxRadarSVG(languages, username) {
     .map((b) => {
       const width = b.label.length * 9 + 32;
       const res = `
-      <g transform="translate(${badgeX}, 55)">
+      <g transform="translate(${badgeX}, 52)">
         <rect x="0" y="0" width="${width}" height="28" rx="8" fill="${b.bg}" stroke="rgba(16,185,129,0.25)" stroke-width="1"/>
         <text x="${width / 2}" y="18" fill="${b.color}" font-family="monospace" font-size="11" font-weight="bold" text-anchor="middle">${b.label}</text>
       </g>`;
@@ -196,26 +216,14 @@ function generateToolboxRadarSVG(languages, username) {
     })
     .join('');
 
-  // Top languages list
-  const displayLangs =
-    languages.length > 0
-      ? languages.slice(0, 6)
-      : [
-          { name: 'JavaScript', percentage: 32.5, repoCount: 8, bytes: 145000, color: '#f1e05a' },
-          { name: 'TypeScript', percentage: 25.1, repoCount: 6, bytes: 112000, color: '#3178c6' },
-          { name: 'Python', percentage: 19.9, repoCount: 5, bytes: 89000, color: '#3572A5' },
-          { name: 'Java', percentage: 9.4, repoCount: 3, bytes: 42000, color: '#b07219' },
-          { name: 'C++', percentage: 6.9, repoCount: 2, bytes: 31000, color: '#f34b7d' },
-          { name: 'HTML/CSS', percentage: 6.2, repoCount: 4, bytes: 28000, color: '#e34c26' },
-        ];
-
+  // Language cards SVG (bottom section)
   const langCardsSvg = displayLangs
     .map((l, idx) => {
       const col = idx % 3;
       const row = Math.floor(idx / 3);
       const x = 30 + col * 296;
       const y = 390 + row * 65;
-      const barW = Math.max(10, Math.round((l.percentage / 100) * 260));
+      const barW = Math.max(8, Math.round((l.percentage / 100) * 256));
 
       return `
       <g transform="translate(${x}, ${y})">
@@ -251,15 +259,15 @@ function generateToolboxRadarSVG(languages, username) {
   <text x="80" y="28" fill="#94a3b8" font-family="monospace" font-size="13" font-weight="bold">&gt;_ ~/</text>
   <text x="120" y="28" fill="#10b981" font-family="monospace" font-size="13" font-weight="bold">toolbox</text>
   <text x="890" y="28" fill="#64748b" font-family="monospace" font-size="11" font-weight="bold" text-anchor="end">SKILL &amp; LANGUAGE RADAR ANALYTICS</text>
-  <line x1="20" y1="42" x2="900" y2="42" stroke="#21262d" stroke-width="1"/>
+  <line x1="20" y1="40" x2="900" y2="40" stroke="#21262d" stroke-width="1"/>
 
   <!-- Tech Badges Bar -->
   ${badgeSvg}
 
   <!-- Left Radar Card: SKILL RADAR -->
-  <rect x="30" y="100" width="410" height="255" rx="10" fill="#090d16" stroke="#1e293b" stroke-width="1"/>
-  <text x="48" y="124" fill="#10b981" font-family="monospace" font-size="12" font-weight="bold">&lt;/&gt; SKILL RADAR</text>
-  <text x="422" y="124" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">Core Proficiencies</text>
+  <rect x="30" y="95" width="410" height="260" rx="10" fill="#090d16" stroke="#1e293b" stroke-width="1"/>
+  <text x="48" y="118" fill="#10b981" font-family="monospace" font-size="12" font-weight="bold">&lt;/&gt; SKILL RADAR</text>
+  <text x="422" y="118" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">Core Proficiencies</text>
   
   <!-- Skill Grid -->
   ${skillGrid.map((p) => `<polygon points="${p}" fill="none" stroke="#1e293b" stroke-dasharray="3 3" stroke-width="1"/>`).join('')}
@@ -269,9 +277,9 @@ function generateToolboxRadarSVG(languages, username) {
   ${skillSubjects.map((s, i) => `<text x="${skillLabels[i].x}" y="${skillLabels[i].y}" fill="#94a3b8" font-family="monospace" font-size="10" text-anchor="${skillLabels[i].anchor}">${s.name}</text>`).join('')}
 
   <!-- Right Radar Card: LANGUAGE MIX RADAR -->
-  <rect x="470" y="100" width="420" height="255" rx="10" fill="#090d16" stroke="#1e293b" stroke-width="1"/>
-  <text x="488" y="124" fill="#10b981" font-family="monospace" font-size="12" font-weight="bold">${username} - LANGUAGE MIX</text>
-  <text x="872" y="124" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">Repository Code Ratio</text>
+  <rect x="470" y="95" width="420" height="260" rx="10" fill="#090d16" stroke="#1e293b" stroke-width="1"/>
+  <text x="488" y="118" fill="#10b981" font-family="monospace" font-size="12" font-weight="bold">${username} - LANGUAGE MIX</text>
+  <text x="872" y="118" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">Repository Code Ratio</text>
   
   <!-- Lang Grid -->
   ${langGrid.map((p) => `<polygon points="${p}" fill="none" stroke="#1e293b" stroke-dasharray="3 3" stroke-width="1"/>`).join('')}
@@ -299,7 +307,6 @@ function generateActivityAnalyticsSVG() {
   const hourVals = [12, 4, 8, 45, 62, 188, 94, 72];
 
   // Construct Area Curve Path
-  // Area chart width: 840px (from x=50 to x=890), y from y=240 (val 0) to y=90 (val 100)
   const chartX = 50;
   const chartY = 240;
   const chartW = 830;
@@ -333,7 +340,7 @@ function generateActivityAnalyticsSVG() {
     })
     .join('');
 
-  // Weekly Bar Chart (x=30 to x=440)
+  // Weekly Bar Chart
   const wBarWidth = 32;
   const wStepX = 54;
   const wStartX = 65;
@@ -352,7 +359,7 @@ function generateActivityAnalyticsSVG() {
     })
     .join('');
 
-  // Hourly Bar Chart (x=470 to x=890)
+  // Hourly Bar Chart
   const hBarWidth = 32;
   const hStepX = 48;
   const hStartX = 500;
