@@ -78,12 +78,25 @@ async function fetchProfileData() {
   // Stars count sum dynamically across repos
   const starsCount = repos.reduce((acc, r) => acc + (r.stargazers_count || 0), 0);
 
-  // Commits count dynamically (or fallback seed)
-  let commitsCount = 35;
-  if (Array.isArray(events)) {
+  // Exact commit count dynamically from GitHub Search Commits API
+  let commitsCount = 0;
+  try {
+    const commitSearchRes = await fetch(
+      `https://api.github.com/search/commits?q=author:${USERNAME}`,
+      { headers: { ...headers, Accept: 'application/vnd.github.cloak-preview+json' } }
+    );
+    if (commitSearchRes.ok) {
+      const commitData = await commitSearchRes.json();
+      commitsCount = commitData.total_count || 0;
+    }
+  } catch (e) {
+    console.warn('Could not fetch exact commit count:', e.message);
+  }
+
+  // Fallback if search API returns 0
+  if (commitsCount === 0 && Array.isArray(events)) {
     const pushEvents = events.filter((e) => e.type === 'PushEvent');
-    const commitSum = pushEvents.reduce((acc, e) => acc + (e.payload?.commits?.length || 1), 0);
-    if (commitSum > 0) commitsCount = Math.max(35, commitSum);
+    commitsCount = pushEvents.reduce((acc, e) => acc + (e.payload?.commits?.length || 1), 0);
   }
 
   // Exact languages sorted by byte count dynamically
@@ -186,8 +199,6 @@ async function generateAnimatedAsciiGif() {
 
     frameBufs.push({
       data: rawRgba,
-      // 12 = 120ms per frame during reveal (~2.6s total reveal sequence)
-      // 600 = 6.0s hold time on full completed card before looping
       delay: f === totalFrames ? 600 : 12,
     });
   }
