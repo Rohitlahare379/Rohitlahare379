@@ -23,20 +23,19 @@ if (GITHUB_TOKEN) {
 
 // Language Colors Map
 const LANGUAGE_COLORS = {
-  TypeScript: '#3178c6',
   Python: '#3572A5',
+  TypeScript: '#3178c6',
   JavaScript: '#f1e05a',
   Java: '#b07219',
   CSS: '#563d7c',
+  Shell: '#89e051',
+  PowerShell: '#012456',
+  HTML: '#e34c26',
   C: '#555555',
   'C++': '#f34b7d',
-  HTML: '#e34c26',
-  Go: '#00ADD8',
-  Rust: '#dea584',
-  PHP: '#4F5D95',
-  Shell: '#89e051',
+  'PL/pgSQL': '#336791',
+  Dockerfile: '#384d54',
   SQL: '#003B57',
-  PostgreSQL: '#4169E1',
 };
 
 async function fetchGitHubData() {
@@ -70,7 +69,41 @@ async function fetchGitHubData() {
     console.warn('Could not fetch user events:', e.message);
   }
 
-  return { user, repos, events };
+  // Fetch EXACT language byte breakdown across all non-fork repositories
+  const langByteMap = {};
+  const repoCountMap = {};
+
+  for (const repo of repos) {
+    if (repo.fork) continue;
+    if (repo.languages_url) {
+      try {
+        const lRes = await fetch(repo.languages_url, { headers });
+        if (lRes.ok) {
+          const bytesObj = await lRes.json();
+          for (const [lang, bytes] of Object.entries(bytesObj)) {
+            const normalizedLang = lang === 'PLpgSQL' ? 'PL/pgSQL' : lang;
+            langByteMap[normalizedLang] = (langByteMap[normalizedLang] || 0) + bytes;
+            repoCountMap[normalizedLang] = (repoCountMap[normalizedLang] || 0) + 1;
+          }
+        }
+      } catch (e) {
+        console.warn(`Failed fetching languages for ${repo.name}:`, e.message);
+      }
+    }
+  }
+
+  const totalBytes = Object.values(langByteMap).reduce((a, b) => a + b, 0);
+  const languages = Object.entries(langByteMap)
+    .map(([name, bytes]) => ({
+      name,
+      bytes,
+      percentage: totalBytes > 0 ? Number(((bytes / totalBytes) * 100).toFixed(1)) : 0,
+      repoCount: repoCountMap[name] || 1,
+      color: LANGUAGE_COLORS[name] || '#10b981',
+    }))
+    .sort((a, b) => b.bytes - a.bytes);
+
+  return { user, repos, events, languages };
 }
 
 // Helper for radar chart geometry
@@ -121,7 +154,7 @@ function createLabelCoords(center, radius, count) {
     const angle = -Math.PI / 2 + i * ((2 * Math.PI) / count);
     const labelDistance = radius + 18;
     const x = center.x + labelDistance * Math.cos(angle);
-    const y = center.y + labelDistance * Math.sin(angle) + 4; // slight vertical balance
+    const y = center.y + labelDistance * Math.sin(angle) + 4;
     let anchor = 'middle';
     if (Math.cos(angle) > 0.3) anchor = 'start';
     if (Math.cos(angle) < -0.3) anchor = 'end';
@@ -132,43 +165,41 @@ function createLabelCoords(center, radius, count) {
 
 function generateToolboxRadarSVG(languages, username) {
   const skillSubjects = [
-    { name: 'JavaScript', val: 95 },
-    { name: 'TypeScript', val: 88 },
-    { name: 'React', val: 92 },
-    { name: 'Node/API', val: 85 },
-    { name: 'Databases', val: 78 },
-    { name: 'Python', val: 82 },
+    { name: 'Python', val: 95 },
+    { name: 'TypeScript', val: 92 },
+    { name: 'JavaScript', val: 88 },
+    { name: 'React', val: 85 },
+    { name: 'Node/API', val: 82 },
+    { name: 'Java', val: 78 },
     { name: 'DSA', val: 90 },
   ];
 
-  // Dynamic Language Mix Radar: build strictly from actual repository language distribution
+  // Top languages directly from exact API statistics
   const displayLangs =
     languages.length > 0
       ? languages.slice(0, 6)
       : [
-          { name: 'TypeScript', percentage: 74.9, repoCount: 8, bytes: 145000, color: '#3178c6' },
-          { name: 'Python', percentage: 12.2, repoCount: 5, bytes: 89000, color: '#3572A5' },
-          { name: 'JavaScript', percentage: 9.9, repoCount: 6, bytes: 112000, color: '#f1e05a' },
-          { name: 'Java', percentage: 1.6, repoCount: 3, bytes: 42000, color: '#b07219' },
-          { name: 'CSS', percentage: 1.0, repoCount: 2, bytes: 31000, color: '#563d7c' },
-          { name: 'C', percentage: 0.4, repoCount: 1, bytes: 12000, color: '#555555' },
+          { name: 'Python', percentage: 48.0, repoCount: 6, bytes: 1275644, color: '#3572A5' },
+          { name: 'TypeScript', percentage: 38.5, repoCount: 6, bytes: 1021931, color: '#3178c6' },
+          { name: 'JavaScript', percentage: 6.0, repoCount: 12, bytes: 159774, color: '#f1e05a' },
+          { name: 'Java', percentage: 2.3, repoCount: 2, bytes: 61672, color: '#b07219' },
+          { name: 'CSS', percentage: 1.8, repoCount: 11, bytes: 48744, color: '#563d7c' },
+          { name: 'Shell', percentage: 1.2, repoCount: 4, bytes: 32338, color: '#89e051' },
         ];
 
   const maxPct = Math.max(...displayLangs.map((l) => l.percentage), 1);
   const langRadarSubjects = displayLangs.map((l) => {
-    // Proportional ratio score: top language is 100, others scale nicely
+    // Proportional ratio score: top language gets 100, others scale accurately
     const ratioScore = Math.min(100, Math.max(18, Math.round((l.percentage / maxPct) * 82 + 18)));
     return { name: l.name, val: ratioScore };
   });
 
-  // Ensure at least 6 points for a balanced radar
   while (langRadarSubjects.length < 6) {
-    const fallbackNames = ['HTML', 'SQL', 'Git'];
+    const fallbackNames = ['HTML', 'SQL', 'C'];
     const name = fallbackNames[langRadarSubjects.length % fallbackNames.length];
     langRadarSubjects.push({ name, val: 20 });
   }
 
-  // Adjust center y=240 and radius=85 so top labels sit cleanly below y=124 title and inside card bounds!
   const c1 = { x: 235, y: 240 };
   const c2 = { x: 675, y: 240 };
   const r = 85;
@@ -190,12 +221,13 @@ function generateToolboxRadarSVG(languages, username) {
 
   // Tech stack icons top bar
   const techBadges = [
-    { label: 'C++', bg: '#1e293b', color: '#f34b7d' },
-    { label: 'JS', bg: '#422006', color: '#f1e05a' },
+    { label: 'Python', bg: '#1e1b4b', color: '#818cf8' },
     { label: 'TS', bg: '#1e3a8a', color: '#3178c6' },
+    { label: 'JS', bg: '#422006', color: '#f1e05a' },
     { label: 'React', bg: '#083344', color: '#61dafb' },
     { label: 'Node', bg: '#064e3b', color: '#10b981' },
-    { label: 'Python', bg: '#1e1b4b', color: '#818cf8' },
+    { label: 'Java', bg: '#361805', color: '#f97316' },
+    { label: 'C++', bg: '#1e293b', color: '#f34b7d' },
     { label: 'HTML', bg: '#431407', color: '#fb923c' },
     { label: 'CSS', bg: '#3b0764', color: '#c084fc' },
     { label: 'Git', bg: '#450a0a', color: '#f87171' },
@@ -433,27 +465,7 @@ function generateActivityAnalyticsSVG() {
 
 async function run() {
   console.log('Fetching GitHub profile data for analytics generation...');
-  const { user, repos } = await fetchGitHubData();
-
-  // Language Stats calculation
-  const langMap = {};
-  let totalBytes = 0;
-  repos.forEach((r) => {
-    if (r.language) {
-      const approxBytes = (r.size || 10) * 1024;
-      langMap[r.language] = (langMap[r.language] || 0) + approxBytes;
-      totalBytes += approxBytes;
-    }
-  });
-
-  const languages = Object.entries(langMap)
-    .map(([name, bytes]) => ({
-      name,
-      bytes,
-      percentage: totalBytes > 0 ? Number(((bytes / totalBytes) * 100).toFixed(1)) : 0,
-      color: LANGUAGE_COLORS[name] || '#10b981',
-    }))
-    .sort((a, b) => b.bytes - a.bytes);
+  const { user, repos, languages } = await fetchGitHubData();
 
   const toolboxSvg = generateToolboxRadarSVG(languages, USERNAME);
   const activitySvg = generateActivityAnalyticsSVG();
